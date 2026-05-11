@@ -16,24 +16,17 @@ requiredEnv.forEach((key) => {
 // Create MySQL Connection Pool
 // --------------------------------
 export const pool = mysql.createPool({
-  host: process.env.DB_HOST,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-
-  // IMPORTANT
-  port: Number(process.env.DB_PORT),
-
+  host: process.env.MYSQLHOST,
+  user: process.env.MYSQLUSER,
+  password: process.env.MYSQLPASSWORD,
+  database: process.env.MYSQLDATABASE,
+  port: process.env.MYSQLPORT ? Number(process.env.MYSQLPORT) : 3306,
   waitForConnections: true,
-  connectionLimit: 15,
+  connectionLimit: 5,
   queueLimit: 0,
-
-  timezone: 'Z',
-
-  // ADD THESE
-  enableKeepAlive: true,
-  keepAliveInitialDelay: 0,
-  connectTimeout: 60000,
+  connectTimeout: 10000, // 10 seconds
+  // Optional: add ssl if Railway requires it
+  // ssl: { rejectUnauthorized: true }
 });
 
 // --------------------------------
