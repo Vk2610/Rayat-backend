@@ -1,27 +1,11 @@
-import mysql from 'mysql2/promise';
-import dotenv from 'dotenv';
+import mysql from "mysql2/promise";
+import dotenv from "dotenv";
 dotenv.config();
-
-// Determine environment (production on Railway or local dev)
-const isProduction =
-  process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT_NAME;
-
-// Choose host and port based on environment
-const dbHost = isProduction
-  ? process.env.MYSQLHOST || 'mysql.railway.internal'
-  : process.env.MYSQL_PUBLIC_HOST || 'viaduct.proxy.rlwy.net';
-const dbPort = isProduction
-  ? process.env.MYSQLPORT
-    ? Number(process.env.MYSQLPORT)
-    : 3306
-  : process.env.MYSQL_PUBLIC_PORT
-    ? Number(process.env.MYSQL_PUBLIC_PORT)
-    : 20805;
 
 // -------------------------------
 // Validate Environment Variables
 // -------------------------------
-const requiredEnv = ['DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'];
+const requiredEnv = ["DB_HOST", "DB_USER", "DB_PASSWORD", "DB_NAME"];
 requiredEnv.forEach((key) => {
   if (!process.env[key]) {
     console.error(`❌ Missing environment variable: ${key}`);
@@ -32,17 +16,15 @@ requiredEnv.forEach((key) => {
 // Create MySQL Connection Pool
 // --------------------------------
 export const pool = mysql.createPool({
-  host: dbHost,
-  user: process.env.MYSQLUSER,
-  password: process.env.MYSQLPASSWORD,
-  database: process.env.MYSQLDATABASE,
-  port: dbPort,
+  host: process.env.DB_HOST,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+  port: process.env.DB_PORT || 3306,
   waitForConnections: true,
-  connectionLimit: 5,
+  connectionLimit: 15, // good for production
   queueLimit: 0,
-  connectTimeout: 10000, // 10 seconds
-  // Optional: add ssl if Railway requires it
-  // ssl: { rejectUnauthorized: true }
+  timezone: "Z", // Fix timezone problems
 });
 
 // --------------------------------
@@ -51,10 +33,10 @@ export const pool = mysql.createPool({
 export const checkConnection = async () => {
   try {
     const connection = await pool.getConnection();
-    console.log('✅ Database connected successfully');
+    console.log("✅ Database connected successfully");
     connection.release();
   } catch (error) {
-    console.error('❌ Database connection failed:', error.message);
+    console.error("❌ Database connection failed:", error.message);
   }
 };
 
@@ -63,12 +45,12 @@ export const checkConnection = async () => {
 // --------------------------------
 export const runQuery = async (query, params = []) => {
   try {
-    console.log('Executing Query in runQuery:', query, params);
+    console.log("Executing Query in runQuery:", query, params);
     const [rows] = await pool.execute(query, params);
-    console.log('Query Result:', rows);
+    console.log("Query Result:", rows);
     return rows;
   } catch (error) {
-    console.error('❌ Query Execution Error:', error.sqlMessage || error);
+    console.error("❌ Query Execution Error:", error.sqlMessage || error);
     throw error;
   }
 };
