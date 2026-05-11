@@ -2,6 +2,22 @@ import mysql from 'mysql2/promise';
 import dotenv from 'dotenv';
 dotenv.config();
 
+// Determine environment (production on Railway or local dev)
+const isProduction =
+  process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT_NAME;
+
+// Choose host and port based on environment
+const dbHost = isProduction
+  ? process.env.MYSQLHOST || 'mysql.railway.internal'
+  : process.env.MYSQL_PUBLIC_HOST || 'viaduct.proxy.rlwy.net';
+const dbPort = isProduction
+  ? process.env.MYSQLPORT
+    ? Number(process.env.MYSQLPORT)
+    : 3306
+  : process.env.MYSQL_PUBLIC_PORT
+    ? Number(process.env.MYSQL_PUBLIC_PORT)
+    : 20805;
+
 // -------------------------------
 // Validate Environment Variables
 // -------------------------------
@@ -16,11 +32,11 @@ requiredEnv.forEach((key) => {
 // Create MySQL Connection Pool
 // --------------------------------
 export const pool = mysql.createPool({
-  host: process.env.MYSQLHOST,
+  host: dbHost,
   user: process.env.MYSQLUSER,
   password: process.env.MYSQLPASSWORD,
   database: process.env.MYSQLDATABASE,
-  port: process.env.MYSQLPORT ? Number(process.env.MYSQLPORT) : 3306,
+  port: dbPort,
   waitForConnections: true,
   connectionLimit: 5,
   queueLimit: 0,
