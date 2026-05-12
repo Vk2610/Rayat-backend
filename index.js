@@ -17,7 +17,11 @@ const app = express();
 
 // Explicit CORS configuration
 app.use(cors({
-  origin: ["https://rayat-kutumb-kalyan-frontend.vercel.app", "http://localhost:5173"],
+  origin: [
+    "https://rayat-kutumb-kalyan-frontend.vercel.app",
+    "https://rayat-kutumb-kalyan-frontend-git-main-vk2610s-projects.vercel.app",
+    "http://localhost:5173"
+  ],
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true
