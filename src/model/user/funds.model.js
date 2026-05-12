@@ -81,7 +81,7 @@ async function dropFundsForeignKeyIfExists() {
   }
 }
 
-createFundsTable();
+
 
 const getSchemeMinimum = async (hrmsNo) => {
   const [rows] = await pool.execute(

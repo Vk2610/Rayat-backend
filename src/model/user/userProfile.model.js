@@ -4,8 +4,9 @@ import { pool } from "../../config/db.config.js";
 export const createUserProfileTable = async () => {
   const query = `
   CREATE TABLE IF NOT EXISTS user_profile (
+  id varchar(255) PRIMARY KEY,
   profileType varchar(255) NULL,
-  hrmsNo varchar(255) NOT NULL,
+  hrmsNo varchar(255) NOT NULL UNIQUE,
   employeeName varchar(255) NULL,
   gender varchar(255) NULL,
   maritalStatus varchar(255) NULL,
@@ -30,7 +31,8 @@ export const createUserProfileTable = async () => {
   retirementDate date NULL,
   AppointmentNature varchar(255) NULL,
   qualifications varchar(255) NULL,
-  schemeType varchar(50) DEFAULT 'New Scheme'
+  schemeType varchar(50) DEFAULT 'New Scheme',
+  role varchar(255) DEFAULT 'user'
   );`;
   await pool.query(query);
   console.log("User Profile table created successfully");
@@ -40,7 +42,7 @@ export const ensureUserProfileHrmsIndex = async () => {
   return true;
 };
 
-createUserProfileTable();
+
 
 // Insert user profile data into user_profile table
 export const insertUserProfile = async (userProfile) => {
