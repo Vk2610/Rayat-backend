@@ -225,11 +225,12 @@ export const getApplicationsByStatusController = async (req, res) => {
 export const patchApprovedAmountController = async (req, res) => {
   try {
     const { id } = req.params;
-    const { approvedAmount } = req.body;
+    const { approvedAmount, approvedDate } = req.body;
 
     const application = await updateApprovedAmountByRequestId(
       id,
       approvedAmount,
+      approvedDate,
     );
 
     // Fetch user email and name using hrmsNo

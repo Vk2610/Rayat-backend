@@ -3,26 +3,28 @@ import { v4 as uuidv4 } from 'uuid';
 
 // Create welfareDocs table
 export const createWelfareDocsTable = async () => {
+  // Drop the table if it exists to avoid duplicate FK constraint errors
+  await pool.execute('DROP TABLE IF EXISTS welfareDocs;');
   const query = `
-  CREATE TABLE IF NOT EXISTS welfareDocs (
-    docsId varchar(255) PRIMARY KEY,
-    hrmsNo varchar(255) NOT NULL,
-    fundId varchar(255) NOT NULL,
-    dischargeCertificate TEXT,
-    doctorPrescription TEXT,
-    medicineBills TEXT,
-    diagnosticReports TEXT,
-    otherDoc1 TEXT NULL,
-    otherDoc2 TEXT NULL,
-    otherDoc3 TEXT NULL,
-    otherDoc4 TEXT NULL,
-    otherDoc5 TEXT NULL,
-    FOREIGN KEY (hrmsNo) REFERENCES wf_users(hrmsNo),
-    FOREIGN KEY (fundId) REFERENCES fund_request(requestId),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-  );`;
+    CREATE TABLE welfareDocs (
+      docsId varchar(255) PRIMARY KEY,
+      hrmsNo varchar(255) NOT NULL,
+      fundId varchar(255) NOT NULL,
+      dischargeCertificate TEXT,
+      doctorPrescription TEXT,
+      medicineBills TEXT,
+      diagnosticReports TEXT,
+      otherDoc1 TEXT NULL,
+      otherDoc2 TEXT NULL,
+      otherDoc3 TEXT NULL,
+      otherDoc4 TEXT NULL,
+      otherDoc5 TEXT NULL,
+      CONSTRAINT fk_welfareDocs_hrmsNo FOREIGN KEY (hrmsNo) REFERENCES wf_users(hrmsNo),
+      CONSTRAINT fk_welfareDocs_fundId FOREIGN KEY (fundId) REFERENCES fund_request(requestId),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );`;
   await pool.execute(query);
-  console.log("✅ welfareDocs table created");
+  console.log('✅ welfareDocs table created');
 };
 
 export const insertWelfareDocsIntoDB = async (connection, docs) => {
@@ -51,18 +53,17 @@ export const insertWelfareDocsIntoDB = async (connection, docs) => {
     safe(docs.otherDoc2),
     safe(docs.otherDoc3),
     safe(docs.otherDoc4),
-    safe(docs.otherDoc5)
+    safe(docs.otherDoc5),
   ];
 
   try {
     await connection.execute(query, values);
-    console.log("✅ Welfare documents inserted successfully");
+    console.log('✅ Welfare documents inserted successfully');
   } catch (error) {
-    console.error("❌ Error inserting welfare documents:", error);
+    console.error('❌ Error inserting welfare documents:', error);
     throw error;
   }
 };
-
 
 // retrieve welfare documents by id
 export const getWelfareDocsById = async (requestId) => {
@@ -78,13 +79,12 @@ export const getWelfareDocsById = async (requestId) => {
 
     // remove null values
     const filtered = Object.fromEntries(
-      Object.entries(rows[0]).filter(([_, value]) => value !== null)
+      Object.entries(rows[0]).filter(([_, value]) => value !== null),
     );
 
     return filtered;
-
   } catch (error) {
-    console.error("❌ Error retrieving welfare documents:", error);
+    console.error('❌ Error retrieving welfare documents:', error);
     throw error;
   }
 };

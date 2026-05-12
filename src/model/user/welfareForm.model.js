@@ -890,7 +890,7 @@ export const getApplicationsByStatus = async ({
           OR fr.hrmsNo LIKE ?
         )
         ${hasApprovedAmountMax ? 'AND COALESCE(fr.approvedAmount, 0) <= ?' : ''}
-        ${hasMinRequestedAmount ? 'AND COALESCE(fr.requestedAmountNumbers, 0) > ?' : ''}
+        ${hasMinRequestedAmount ? 'AND COALESCE(fr.requestedAmountNumbers, 0) >= ?' : ''}
         ${hasZone ? 'AND up.branchRegionName = ?' : ''}
       ORDER BY ${orderByColumn} ${orderDirection}
     `;
@@ -970,7 +970,7 @@ export const getApprovedAmountReportApplications = async ({
         )
         ${hasApprovedDateFrom ? 'AND DATE(fr.approvedAmountDate) >= ?' : ''}
         ${hasApprovedDateTo ? 'AND DATE(fr.approvedAmountDate) <= ?' : ''}
-        ${hasMinRequestedAmount ? 'AND COALESCE(fr.requestedAmountNumbers, 0) > ?' : ''}
+        ${hasMinRequestedAmount ? 'AND COALESCE(fr.requestedAmountNumbers, 0) >= ?' : ''}
         ${hasZone ? 'AND up.branchRegionName = ?' : ''}
     `;
 
@@ -1009,7 +1009,7 @@ export const getApprovedAmountReportApplications = async ({
         )
         ${hasApprovedDateFrom ? 'AND DATE(fr.approvedAmountDate) >= ?' : ''}
         ${hasApprovedDateTo ? 'AND DATE(fr.approvedAmountDate) <= ?' : ''}
-        ${hasMinRequestedAmount ? 'AND COALESCE(fr.requestedAmountNumbers, 0) > ?' : ''}
+        ${hasMinRequestedAmount ? 'AND COALESCE(fr.requestedAmountNumbers, 0) >= ?' : ''}
         ${hasZone ? 'AND up.branchRegionName = ?' : ''}
       ORDER BY ${orderByColumn} ${orderDirection}
       LIMIT ${lim} OFFSET ${offset}
@@ -1042,6 +1042,7 @@ export const getApprovedAmountReportApplications = async ({
 export const updateApprovedAmountByRequestId = async (
   requestId,
   approvedAmount,
+  approvedDate,
 ) => {
   const connection = await pool.getConnection();
 
@@ -1083,18 +1084,23 @@ export const updateApprovedAmountByRequestId = async (
       throw new Error('Approved amount cannot exceed requested amount.');
     }
 
+    // If approvedDate is provided, use it. Otherwise, if amount > 0, use current time.
+    let finalApprovedDate = approvedDate;
+    if (!finalApprovedDate && numericAmount > 0) {
+      finalApprovedDate = new Date();
+    } else if (numericAmount === 0) {
+      finalApprovedDate = null;
+    }
+
     await connection.execute(
       `
         UPDATE fund_request
         SET approvedAmount = ?,
-            approvedAmountDate = CASE
-              WHEN ? > 0 THEN CURRENT_TIMESTAMP
-              ELSE NULL
-            END
+            approvedAmountDate = ?
         WHERE requestId = ?
           AND COALESCE(isDeleted, 0) = 0
       `,
-      [numericAmount, numericAmount, requestId],
+      [numericAmount, finalApprovedDate, requestId],
     );
 
     const [updatedRows] = await connection.execute(

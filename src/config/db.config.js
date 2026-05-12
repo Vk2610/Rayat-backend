@@ -1,11 +1,11 @@
-import mysql from "mysql2/promise";
-import dotenv from "dotenv";
+import mysql from 'mysql2/promise';
+import dotenv from 'dotenv';
 dotenv.config();
 
 // -------------------------------
 // Validate Environment Variables
 // -------------------------------
-const requiredEnv = ["DB_HOST", "DB_USER", "DB_PASSWORD", "DB_NAME"];
+const requiredEnv = ['DB_HOST', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'];
 requiredEnv.forEach((key) => {
   if (!process.env[key]) {
     console.error(`❌ Missing environment variable: ${key}`);
@@ -24,7 +24,7 @@ export const pool = mysql.createPool({
   waitForConnections: true,
   connectionLimit: 15, // good for production
   queueLimit: 0,
-  timezone: "Z", // Fix timezone problems
+  timezone: 'Z', // Fix timezone problems
 });
 
 // --------------------------------
@@ -33,10 +33,10 @@ export const pool = mysql.createPool({
 export const checkConnection = async () => {
   try {
     const connection = await pool.getConnection();
-    console.log("✅ Database connected successfully");
+    console.log('✅ Database connected successfully');
     connection.release();
   } catch (error) {
-    console.error("❌ Database connection failed:", error.message);
+    console.error('❌ Database connection failed:', error.message);
   }
 };
 
@@ -45,12 +45,12 @@ export const checkConnection = async () => {
 // --------------------------------
 export const runQuery = async (query, params = []) => {
   try {
-    console.log("Executing Query in runQuery:", query, params);
+    console.log('Executing Query in runQuery:', query, params);
     const [rows] = await pool.execute(query, params);
-    console.log("Query Result:", rows);
+    console.log('Query Result:', rows);
     return rows;
   } catch (error) {
-    console.error("❌ Query Execution Error:", error.sqlMessage || error);
+    console.error('❌ Query Execution Error:', error.sqlMessage || error);
     throw error;
   }
 };
