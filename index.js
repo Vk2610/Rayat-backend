@@ -20,37 +20,19 @@ app.use(cors({
   origin: ["https://rayat-kutumb-kalyan-frontend.vercel.app", "http://localhost:5173"],
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
-  credentials: true,
-  optionsSuccessStatus: 200
+  credentials: true
 }));
-
-// Manual OPTIONS handler (insurance)
-app.options("*", cors());
 
 app.use(express.json());
 
 // Log all incoming requests for debugging
 app.use((req, res, next) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  console.log(`Incoming Request: ${req.method} ${req.url}`);
   next();
 });
 
-// Database initialization with error handling
-const initDB = async () => {
-  try {
-    await checkConnection();
-    await createAllTables();
-    console.log("✅ Database initialized");
-  } catch (err) {
-    console.error("❌ Database initialization failed:", err.message);
-  }
-};
-
-initDB();
-
-app.get("/", (req, res) => {
-  res.send("🚀 Welfare System API Running");
-});
+await checkConnection();
+await createAllTables();
 
 app.use("/employees", employeeRoutes);
 app.use("/auth", authRoutes);
@@ -60,14 +42,8 @@ app.use('/admin', adminRoutes);
 app.use("/funds", fundsRoutes);
 app.use("/api/applications", applicationsRoutes);
 
-// Global Error Handler with CORS headers
-app.use((err, req, res, next) => {
-  console.error(`💥 Server Error: ${err.message}`);
-  res.header("Access-Control-Allow-Origin", "https://rayat-kutumb-kalyan-frontend.vercel.app");
-  res.status(err.status || 500).json({ 
-    success: false, 
-    message: err.message || "Internal Server Error" 
-  });
+app.get("/", (req, res) => {
+  res.send("🚀 Welfare System API Running");
 });
 
 // Catch-all route for 404s
