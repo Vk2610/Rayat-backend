@@ -35,8 +35,29 @@ export const createUserProfileTable = async () => {
   role varchar(255) DEFAULT 'user'
   );`;
   await pool.query(query);
-  console.log("User Profile table created successfully");
+
+  // Migration for existing tables
+  await ensureColumnExists("user_profile", "id", "varchar(255) FIRST");
+  await ensureColumnExists("user_profile", "role", "varchar(255) DEFAULT 'user'");
+
+  console.log("User Profile table created/ensured successfully");
 };
+
+async function ensureColumnExists(tableName, columnName, definition) {
+  const [rows] = await pool.query(`
+    SELECT COLUMN_NAME
+    FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = ?
+      AND COLUMN_NAME = ?
+  `, [tableName, columnName]);
+
+  if (rows.length === 0) {
+    console.log(`Adding missing column ${columnName} to ${tableName}`);
+    await pool.query(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition}`);
+  }
+}
+
 
 export const ensureUserProfileHrmsIndex = async () => {
   return true;

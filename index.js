@@ -17,8 +17,8 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-checkConnection();
-createAllTables();
+await checkConnection();
+await createAllTables();
 
 app.use("/employees", employeeRoutes);
 app.use("/auth", authRoutes);
