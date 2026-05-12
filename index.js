@@ -14,8 +14,22 @@ import fundsRoutes from "./src/routes/user/funds.routes.js";
 import applicationsRoutes from "./src/routes/admin/applications.routes.js";
 
 const app = express();
-app.use(cors());
+
+// Explicit CORS configuration
+app.use(cors({
+  origin: ["https://rayat-kutumb-kalyan-frontend.vercel.app", "http://localhost:5173"],
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true
+}));
+
 app.use(express.json());
+
+// Log all incoming requests for debugging
+app.use((req, res, next) => {
+  console.log(`Incoming Request: ${req.method} ${req.url}`);
+  next();
+});
 
 await checkConnection();
 await createAllTables();
@@ -28,9 +42,14 @@ app.use('/admin', adminRoutes);
 app.use("/funds", fundsRoutes);
 app.use("/api/applications", applicationsRoutes);
 
-
 app.get("/", (req, res) => {
   res.send("🚀 Welfare System API Running");
+});
+
+// Catch-all route for 404s
+app.use((req, res) => {
+  console.error(`❌ 404 Not Found: ${req.method} ${req.url}`);
+  res.status(404).json({ error: "Route not found" });
 });
 
 const PORT = process.env.PORT || 5000;
