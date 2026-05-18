@@ -3,7 +3,7 @@ import { getForms, getFormsOfUser, getUsersController, updateFormApprovalAmt, up
 import { getWelfareDocs } from "../../controller/user/welfareDocs.controller.js";
 import { verifyToken } from "../../middleware/auth.middleware.js";
 import { getAdminDashboardData } from "../../controller/admin/adminDashboard.controller.js";
-import { approveFundDisbursement, getFundDisbursementUsers, getUsersByFundStatus } from "../../controller/admin/adminFunds.controller.js";
+import { approveFundDisbursement, getFundDisbursementUsers, getUsersByFundStatus, getDisbursementHistory } from "../../controller/admin/adminFunds.controller.js";
 
 const route = express.Router();
 
@@ -17,6 +17,7 @@ route.get('/get-docs', getWelfareDocs)
 route.get("/funds-users", verifyToken, getUsersByFundStatus);
 route.get("/fund-disbursement-users", verifyToken, getFundDisbursementUsers);
 route.post("/approve-fund-disbursement", verifyToken, approveFundDisbursement);
+route.get("/disbursement-history", verifyToken, getDisbursementHistory);
 route.get('/approved-unpaid-forms', getApprovedUnpaidForms);
 route.get('/get-form-detail', getFormDetail);
 route.delete('/delete-form/:requestId', deleteFormController);

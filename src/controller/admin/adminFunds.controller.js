@@ -235,3 +235,72 @@ export const approveFundDisbursement = async (req, res) => {
         connection.release();
     }
 };
+
+export const getDisbursementHistory = async (req, res) => {
+    try {
+        const { page = 1, limit = 10, search = '' } = req.query;
+        const pg = Math.max(parseInt(page, 10) || 1, 1);
+        const lim = Math.max(parseInt(limit, 10) || 10, 1);
+        const offset = (pg - 1) * lim;
+        const searchParam = `%${search.trim()}%`;
+
+        // Count total
+        const countQuery = `
+          SELECT COUNT(*) AS total
+          FROM user_profile e
+          JOIN funds f ON e.hrmsNo = f.hrmsNo
+          WHERE COALESCE(f.isClaimedBenefits, FALSE) = TRUE
+            AND (e.employeeName LIKE ? OR e.hrmsNo LIKE ?)
+        `;
+        
+        const [countRows] = await db.execute(countQuery, [searchParam, searchParam]);
+        const total = countRows[0]?.total ?? 0;
+
+        // Fetch data
+        const dataQuery = `
+          SELECT
+            e.hrmsNo,
+            e.employeeName,
+            e.mobileNo,
+            ${joiningDateSql} AS joiningDate,
+            ${retirementDateSql} AS retirementDate,
+            COALESCE(e.schemeType, 'Old Scheme') AS schemeType,
+            COALESCE(f.installment1Date, ${joiningDateSql}) AS installment1Date,
+            f.meetingNo,
+            f.meetingDate,
+            f.checqueNo AS checkNo,
+            (
+              COALESCE(f.installment1, 0) +
+              COALESCE(f.installment2, 0) +
+              COALESCE(f.installment3, 0) +
+              COALESCE(f.installment4, 0) +
+              COALESCE(f.installment5, 0)
+            ) AS totalPaid,
+            f.bonus,
+            f.totalPayableAmt
+          FROM user_profile e
+          JOIN funds f ON e.hrmsNo = f.hrmsNo
+          WHERE COALESCE(f.isClaimedBenefits, FALSE) = TRUE
+            AND (e.employeeName LIKE ? OR e.hrmsNo LIKE ?)
+          ORDER BY f.meetingDate DESC, e.employeeName ASC
+          LIMIT ${lim} OFFSET ${offset}
+        `;
+
+        const [rows] = await db.execute(dataQuery, [searchParam, searchParam]);
+
+        res.status(200).json({
+            success: true,
+            total,
+            page: pg,
+            limit: lim,
+            users: rows,
+        });
+    } catch (error) {
+        console.error("Disbursement history error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to fetch disbursement history",
+        });
+    }
+};
+
