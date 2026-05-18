@@ -209,6 +209,38 @@ export async function updateInstallments(hrmsNo, data) {
   return getFundsByHRMS(hrmsNo);
 }
 
+export async function updateDisbursement(hrmsNo, data) {
+  const { meetingNo, checqueNo, meetingDate } = data;
+
+  const [existingRows] = await pool.execute(
+    `SELECT id FROM funds WHERE hrmsNo = ? ORDER BY id DESC LIMIT 1`,
+    [hrmsNo]
+  );
+
+  if (!existingRows.length) {
+    await pool.execute(
+      `
+        INSERT INTO funds (hrmsNo, meetingNo, checqueNo, meetingDate)
+        VALUES (?, ?, ?, ?)
+      `,
+      [hrmsNo, meetingNo || null, checqueNo || null, meetingDate || null]
+    );
+    return getFundsByHRMS(hrmsNo);
+  }
+
+  const fundId = existingRows[0].id;
+  await pool.execute(
+    `
+      UPDATE funds
+      SET meetingNo = ?, checqueNo = ?, meetingDate = ?
+      WHERE id = ?
+    `,
+    [meetingNo || null, checqueNo || null, meetingDate || null, fundId]
+  );
+
+  return getFundsByHRMS(hrmsNo);
+}
+
 
 
 export async function getFundsByHRMS(hrmsNo) {

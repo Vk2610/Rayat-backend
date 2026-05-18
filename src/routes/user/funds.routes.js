@@ -3,7 +3,8 @@ import { pool } from "../../config/db.config.js";   // ✅ FIX: pool must be imp
 import { 
   getFundsByHRMS,
   updateInstallments,
-  createFundRecord
+  createFundRecord,
+  updateDisbursement
 } from "../../model/user/funds.model.js";
 
 const router = express.Router();
@@ -72,6 +73,25 @@ router.put("/upd-ints/:hrmsNo", async (req, res) => {
       error: "Server error updating installments",
       details: err?.sqlMessage || err?.message || String(err),
     });
+  }
+});
+
+
+/* -------------------------------------------------------
+   UPDATE DISBURSEMENT
+---------------------------------------------------------*/
+router.put("/upd-disbursement/:hrmsNo", async (req, res) => {
+  try {
+    const hrmsNo = req.params.hrmsNo;
+    const { meetingNo, checqueNo, meetingDate } = req.body;
+    
+    await createFundRecord(hrmsNo);
+    const fund = await updateDisbursement(hrmsNo, { meetingNo, checqueNo, meetingDate });
+    
+    res.json({ success: true, fund });
+  } catch (err) {
+    console.error("PUT /upd-disbursement error:", err);
+    res.status(500).json({ error: "Server error updating disbursement details" });
   }
 });
 
