@@ -95,8 +95,8 @@ export const submitWelfareForm = async (req, res) => {
 
 export const updateFormStatus = async (req, res) => {
   try {
-    const { id, status } = req.body;
-    await updateStatus(id, status);
+    const { id, status, rejectionReason } = req.body;
+    await updateStatus(id, status, rejectionReason);
     return res
       .status(200)
       .json({ message: 'Form Status updated successfully' });

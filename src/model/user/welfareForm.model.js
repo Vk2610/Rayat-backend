@@ -78,6 +78,7 @@ const fundRequestTable = async () => {
       formDate VARCHAR(100) NOT NULL,
       formStatus ENUM('Pending','Approved','Rejected') DEFAULT 'Pending',
       isDeleted TINYINT(1) NOT NULL DEFAULT 0,
+      rejectionReason VARCHAR(500) NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (hrmsNo) REFERENCES wf_users(hrmsNo)
     );
@@ -138,6 +139,20 @@ const previousFundTable = async () => {
   console.log('✅ PreviousFund table created');
 };
 
+const ensureFundRequestRejectionReasonColumn = async () => {
+  const [rows] = await pool.execute(`
+    SHOW COLUMNS FROM fund_request LIKE 'rejectionReason'
+  `);
+
+  if (!rows.length) {
+    await pool.execute(`
+      ALTER TABLE fund_request
+      ADD COLUMN rejectionReason VARCHAR(500) NULL
+    `);
+    console.log('✅ fund_request.rejectionReason column added');
+  }
+};
+
 // Run all table creations
 export const createAllTables = async () => {
   try {
@@ -147,6 +162,7 @@ export const createAllTables = async () => {
     await fundRequestTable();
     await ensureFundRequestSoftDeleteColumn();
     await ensureFundRequestApprovedAmountDateColumn();
+    await ensureFundRequestRejectionReasonColumn();
     await previousFundTable();
     await createWelfareDocsTable();
     await ensureUserProfileEmployeeStore();
@@ -358,15 +374,23 @@ export const insertWelfareFormData = async (req, res) => {
   }
 };
 
-export const updateStatus = async (id, status) => {
+export const updateStatus = async (id, status, rejectionReason = null) => {
   const connection = await pool.getConnection();
 
   try {
-    const query = `
-      UPDATE fund_request SET formStatus = ? WHERE requestId = ? AND COALESCE(isDeleted, 0) = 0
-    `;
-
-    const values = [status, id];
+    let query;
+    let values;
+    if (status === 'Rejected') {
+      query = `
+        UPDATE fund_request SET formStatus = ?, rejectionReason = ? WHERE requestId = ? AND COALESCE(isDeleted, 0) = 0
+      `;
+      values = [status, rejectionReason, id];
+    } else {
+      query = `
+        UPDATE fund_request SET formStatus = ?, rejectionReason = NULL WHERE requestId = ? AND COALESCE(isDeleted, 0) = 0
+      `;
+      values = [status, id];
+    }
 
     await connection.execute(query, values);
   } catch (error) {
@@ -435,6 +459,7 @@ export const getAllForms = async ({ page = 1, limit = 10 } = {}) => {
         fr.applicantSignature,
         fr.formDate,
         fr.formStatus,
+        fr.rejectionReason,
         fr.created_at,
 
         p.patientId,
@@ -543,6 +568,7 @@ export const getAllFormsOfUser = async (hrmsNo) => {
         fr.approvedAmount,
         fr.formDate,
         fr.formStatus,
+        fr.rejectionReason,
         fr.created_at,
 
         p.patientId,
@@ -739,6 +765,7 @@ export const getFormByRequestId = async (requestId) => {
         fr.applicantSignature,
         fr.formDate,
         fr.formStatus,
+        fr.rejectionReason,
         fr.sanctionLetter,
 
         p.patientName,
@@ -868,6 +895,7 @@ export const getApplicationsByStatus = async ({
         fr.requestedAmountNumbers AS requestedAmount,
         fr.approvedAmount AS approvedAmount,
         fr.formDate,
+        fr.rejectionReason,
         fr.created_at
       FROM fund_request fr
       JOIN wf_users wf ON fr.hrmsNo = wf.hrmsNo
