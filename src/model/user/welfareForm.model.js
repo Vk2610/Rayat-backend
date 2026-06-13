@@ -1159,6 +1159,14 @@ export const getApplicationsByStatus = async ({
         me.totalExpenses AS totalExpenditure,
         fr.requestedAmountNumbers AS requestedAmount,
         fr.approvedAmount AS approvedAmount,
+        (
+          SELECT COALESCE(SUM(approvedAmount), 0)
+          FROM fund_request
+          WHERE hrmsNo = fr.hrmsNo
+            AND formStatus = 'Approved'
+            AND requestId != fr.requestId
+            AND COALESCE(isDeleted, 0) = 0
+        ) AS userTotalApproved,
         fr.formDate,
         fr.rejectionReason,
         fr.created_at
@@ -1375,6 +1383,22 @@ export const updateApprovedAmountByRequestId = async (
 
     if (numericAmount > Number(application.requestedAmountNumbers || 0)) {
       throw new Error('Approved amount cannot exceed requested amount.');
+    }
+
+    const [sumRows] = await connection.execute(
+      `
+        SELECT COALESCE(SUM(approvedAmount), 0) AS totalApproved
+        FROM fund_request
+        WHERE hrmsNo = ?
+          AND formStatus = 'Approved'
+          AND requestId != ?
+          AND COALESCE(isDeleted, 0) = 0
+      `,
+      [application.hrmsNo, requestId]
+    );
+    const existingTotalApproved = Number(sumRows[0]?.totalApproved || 0);
+    if (existingTotalApproved + numericAmount > 100000) {
+      throw new Error(`Approved amount exceeds the lifetime limit of ₹1,00,000. User has already been approved for ₹${existingTotalApproved.toLocaleString('en-IN')}. Maximum remaining is ₹${(100000 - existingTotalApproved).toLocaleString('en-IN')}.`);
     }
 
     // If approvedDate is provided, use it. Otherwise, if amount > 0, use current time.

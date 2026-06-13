@@ -330,6 +330,15 @@ export const deleteFormController = async (req, res) => {
 
 export const resubmitWelfareForm = async (req, res) => {
   try {
+    console.log("resubmitWelfareForm params:", req.params);
+    console.log("resubmitWelfareForm body keys:", Object.keys(req.body));
+    console.log("resubmitWelfareForm doc URLs:", {
+      dischargeCertificate: req.body.dischargeCertificate,
+      doctorPrescription: req.body.doctorPrescription,
+      medicineBills: req.body.medicineBills,
+      diagnosticReports: req.body.diagnosticReports,
+      otherDoc1: req.body.otherDoc1,
+    });
     await updateWelfareFormData(req, res);
   } catch (error) {
     console.error('Error resubmitting welfare form:', error);
