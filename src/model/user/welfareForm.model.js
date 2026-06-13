@@ -1360,7 +1360,7 @@ export const updateApprovedAmountByRequestId = async (
 
     const [rows] = await connection.execute(
       `
-        SELECT requestId, requestedAmountNumbers, formStatus
+        SELECT requestId, hrmsNo, requestedAmountNumbers, formStatus
         FROM fund_request
         WHERE requestId = ?
           AND COALESCE(isDeleted, 0) = 0
