@@ -374,6 +374,271 @@ export const insertWelfareFormData = async (req, res) => {
   }
 };
 
+export const updateWelfareFormData = async (req, res) => {
+  const { requestId } = req.params;
+  const formData = req.body;
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    // 1. Get current form's hrmsNo and created_at
+    const [rows] = await connection.execute(
+      `
+        SELECT hrmsNo, created_at
+        FROM fund_request
+        WHERE requestId = ?
+          AND COALESCE(isDeleted, 0) = 0
+        LIMIT 1
+      `,
+      [requestId],
+    );
+
+    if (!rows.length) {
+      connection.release();
+      return res.status(404).json({ error: 'Form not found or deleted.' });
+    }
+
+    const targetForm = rows[0];
+    const hrmsNo = targetForm.hrmsNo;
+
+    // 2. Determine position among forms of the user
+    const [positionRows] = await connection.execute(
+      `
+        SELECT COUNT(*) AS position
+        FROM fund_request
+        WHERE hrmsNo = ?
+          AND COALESCE(isDeleted, 0) = 0
+          AND created_at <= ?
+      `,
+      [hrmsNo, targetForm.created_at],
+    );
+    const formPosition = positionRows[0]?.position ?? 0;
+
+    // 3. Update wf_users
+    await connection.execute(
+      `
+        UPDATE wf_users SET
+          applicantName = ?,
+          branchName = ?,
+          joiningDate = ?,
+          designation = ?,
+          totalService = ?,
+          monthlySalary = ?,
+          mobileNo = ?
+        WHERE hrmsNo = ?
+      `,
+      [
+        formData.applicantName,
+        formData.branchName,
+        formData.joiningDate,
+        formData.designation,
+        formData.totalService,
+        formData.monthlySalary,
+        formData.mobileNo,
+        hrmsNo,
+      ]
+    );
+
+    // 4. Update patient (using ranked position)
+    if (formPosition > 0) {
+      const [patientRows] = await connection.execute(
+        `
+          SELECT patientId
+          FROM (
+            SELECT
+              patientId,
+              ROW_NUMBER() OVER (PARTITION BY hrmsNo ORDER BY created_at ASC) AS row_num
+            FROM patient
+            WHERE hrmsNo = ?
+          ) ranked_patient
+          WHERE row_num = ?
+        `,
+        [hrmsNo, formPosition],
+      );
+      const patientId = patientRows[0]?.patientId;
+      if (patientId) {
+        await connection.execute(
+          `
+            UPDATE patient SET
+              patientName = ?,
+              relation = ?,
+              illnessNature = ?,
+              illnessDuration = ?
+            WHERE patientId = ?
+          `,
+          [
+            formData.patientName,
+            formData.relation,
+            formData.illnessNature,
+            formData.illnessDuration,
+            patientId,
+          ]
+        );
+      }
+    }
+
+    // 5. Update medical_expenses (using ranked position)
+    if (formPosition > 0) {
+      const [expenseRows] = await connection.execute(
+        `
+          SELECT expenseId
+          FROM (
+            SELECT
+              expenseId,
+              ROW_NUMBER() OVER (PARTITION BY hrmsNo ORDER BY created_at ASC) AS row_num
+            FROM medical_expenses
+            WHERE hrmsNo = ?
+          ) ranked_expenses
+          WHERE row_num = ?
+        `,
+        [hrmsNo, formPosition],
+      );
+      const expenseId = expenseRows[0]?.expenseId;
+      if (expenseId) {
+        await connection.execute(
+          `
+            UPDATE medical_expenses SET
+              medicineBill = ?,
+              doctorBill = ?,
+              otherExpenses = ?,
+              totalExpenses = ?,
+              certificatesAttached = ?
+            WHERE expenseId = ?
+          `,
+          [
+            formData.medicineBill,
+            formData.doctorBill,
+            formData.otherExpenses,
+            formData.totalExpenses,
+            formData.certificatesAttached,
+            expenseId,
+          ]
+        );
+      }
+    }
+
+    // 6. Update previous_fund (using ranked position)
+    if (formPosition > 0) {
+      const [previousRows] = await connection.execute(
+        `
+          SELECT previousId
+          FROM (
+            SELECT
+              previousId,
+              ROW_NUMBER() OVER (PARTITION BY hrmsNo ORDER BY created_at ASC) AS row_num
+            FROM previous_fund
+            WHERE hrmsNo = ?
+          ) ranked_previous
+          WHERE row_num = ?
+        `,
+        [hrmsNo, formPosition],
+      );
+      const previousId = previousRows[0]?.previousId;
+
+      if (previousId) {
+        if (!formData.previousHelp || formData.previousHelp === 'नाही') {
+          // Delete if no longer needed
+          await connection.execute(
+            `DELETE FROM previous_fund WHERE previousId = ?`,
+            [previousId]
+          );
+        } else {
+          // Update existing
+          await connection.execute(
+            `
+              UPDATE previous_fund SET
+                previousHelpDetails = ?,
+                annualDeductions = ?
+              WHERE previousId = ?
+            `,
+            [formData.previousHelpDetails, formData.annualDeductions, previousId]
+          );
+        }
+      } else if (formData.previousHelp && formData.previousHelp === 'होय') {
+        // Insert new since it was 'होय' but not in DB
+        const newPreviousId = uuidv4();
+        await connection.execute(
+          `
+            INSERT INTO previous_fund (
+              previousId, hrmsNo, previousHelpDetails, annualDeductions
+            ) VALUES (?, ?, ?, ?)
+          `,
+          [newPreviousId, hrmsNo, formData.previousHelpDetails, formData.annualDeductions]
+        );
+      }
+    }
+
+    // 7. Update welfareDocs
+    await connection.execute(
+      `
+        UPDATE welfareDocs SET
+          dischargeCertificate = ?,
+          doctorPrescription = ?,
+          medicineBills = ?,
+          diagnosticReports = ?,
+          otherDoc1 = ?,
+          otherDoc2 = ?,
+          otherDoc3 = ?,
+          otherDoc4 = ?,
+          otherDoc5 = ?
+        WHERE fundId = ?
+      `,
+      [
+        formData.dischargeCertificate || null,
+        formData.doctorPrescription || null,
+        formData.medicineBills || null,
+        formData.diagnosticReports || null,
+        formData.otherDoc1 || null,
+        formData.otherDoc2 || null,
+        formData.otherDoc3 || null,
+        formData.otherDoc4 || null,
+        formData.otherDoc5 || null,
+        requestId,
+      ]
+    );
+
+    // 8. Update fund_request
+    await connection.execute(
+      `
+        UPDATE fund_request SET
+          requestedAmountNumbers = ?,
+          requestedAmountWords = ?,
+          branchNameForDeposit = ?,
+          savingsAccountNo = ?,
+          officerRecommendation = ?,
+          applicantSignature = ?,
+          formStatus = 'Pending',
+          rejectionReason = NULL
+        WHERE requestId = ?
+      `,
+      [
+        formData.requestedAmountNumbers,
+        formData.requestedAmountWords,
+        formData.branchNameForDeposit,
+        formData.savingsAccountNo,
+        formData.officerRecommendation,
+        formData.applicantSignature,
+        requestId,
+      ]
+    );
+
+    await connection.commit();
+    console.log('✅ Form data updated successfully!');
+    return res.status(200).json({
+      message: '✅ Welfare form updated and reapplied successfully',
+    });
+  } catch (error) {
+    await connection.rollback();
+    console.error('❌ Transaction failed:', error);
+    return res
+      .status(500)
+      .json({ error: 'Transaction failed, all changes rolled back' });
+  } finally {
+    connection.release();
+  }
+};
+
 export const updateStatus = async (id, status, rejectionReason = null) => {
   const connection = await pool.getConnection();
 

@@ -11,6 +11,7 @@ import {
   updateApprAmt,
   updateStatus,
   getApprovedNoAmtForms,
+  updateWelfareFormData,
 } from '../../model/user/welfareForm.model.js';
 import { getWelfareDocsById } from '../../model/user/welfareDocs.model.js';
 import { pool } from '../../config/db.config.js';
@@ -324,5 +325,14 @@ export const deleteFormController = async (req, res) => {
     return res
       .status(statusCode)
       .json({ message: error.message || 'Failed to delete form' });
+  }
+};
+
+export const resubmitWelfareForm = async (req, res) => {
+  try {
+    await updateWelfareFormData(req, res);
+  } catch (error) {
+    console.error('Error resubmitting welfare form:', error);
+    return res.status(500).json({ message: 'Internal Server Error' });
   }
 };
